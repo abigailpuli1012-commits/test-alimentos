@@ -318,11 +318,17 @@ img{-webkit-user-drag:none}
 .mapa-impresion{display:none}
 
 @media print{
+  /* Nada de visibility:hidden: un elemento invisible sigue ocupando su alto y el
+     documento impreso conserva esas miles de píxeles como hojas en blanco. Se
+     retira de verdad con display:none, y ningún ancestro guarda min-height ni
+     height:100dvh de la pantalla normal. */
+  html,body{height:auto!important;min-height:0!important}
   body{background:#fff}
-  body *{visibility:hidden}
-  .scr-mapa, .scr-mapa *{visibility:visible}
-  .scr-mapa{position:absolute;left:0;top:0;padding:0;width:100%;min-height:0;color:#032532}
-  .scr-mapa .mapa-pantalla, .scr-mapa .acciones, .scr-mapa .continuar{display:none!important}
+  #luz{min-height:0!important;filter:none!important;display:block}
+  #app{min-height:0!important;display:block;position:static}
+
+  .scr-mapa .mapa-pantalla, .scr-mapa .acciones, .scr-mapa .continuar, .scr-mapa .aviso-legal{display:none!important}
+  .scr-mapa{position:static;padding:0;width:100%;min-height:0;color:#032532}
   .scr-mapa .mapa-impresion{display:block}
   @page{size:A4 landscape;margin:8mm}
 
@@ -406,7 +412,7 @@ img{-webkit-user-drag:none}
    La pantalla de alimento conserva su propio tratamiento de dos
    columnas: aquí solo se le pone techo de ancho total.
    ================================================================ */
-@media (min-width:760px){
+@media screen and (min-width:760px){
   #app{justify-content:center}
 
   .txtscr,
