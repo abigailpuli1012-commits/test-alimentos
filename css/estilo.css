@@ -329,8 +329,10 @@ img{-webkit-user-drag:none}
 
   .scr-mapa .mapa-pantalla, .scr-mapa .acciones, .scr-mapa .continuar, .scr-mapa .aviso-legal{display:none!important}
   .scr-mapa{position:static;padding:0;width:100%;min-height:0;color:#032532}
-  .scr-mapa .mapa-impresion{display:block}
-  @page{size:A4 landscape;margin:8mm}
+  .scr-mapa .mapa-impresion{display:block;box-sizing:border-box;padding:8mm}
+  /* margin:0 en @page quita el encabezado/pie que añade el navegador (título y URL);
+     el aire de esos 8mm se devuelve como padding del propio contenido, arriba. */
+  @page{size:A4 landscape;margin:0}
 
   .mapa-impresion{font-family:var(--sans)}
   .mapa-impresion .top{display:flex;justify-content:space-between;align-items:baseline;gap:20px;
