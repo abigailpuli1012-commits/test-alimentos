@@ -202,6 +202,9 @@ img{-webkit-user-drag:none}
    Solo entre alimentos dentro del mismo modo de color. No se usa en la
    bajada de luz de portada/respiro: esa transición se queda igual. */
 .scr-alimento.m2-saliendo{
+  /* La pantalla que se va no puede robar clics: quien responde rapido pulsaba
+     sobre ella y el toque se perdia. */
+  pointer-events:none;
   position:absolute;top:0;left:0;right:0;z-index:2;
   transition:opacity .13s cubic-bezier(.4,0,1,1),transform .16s cubic-bezier(.4,0,1,1);
 }

@@ -128,10 +128,37 @@
   /* ============================================================
      CODIFICACIÓN COMPACTA PARA EL ENLACE DE CONTINUACIÓN
      El fragmento nunca viaja a ningún servidor: vive solo en la URL local.
-     Formato: 1 carácter para la pregunta general (0-2 o '.'), + 144 caracteres
-     para los alimentos (0-3 o '.'), todo en base64url.
-     CRÍTICO: cualquier fragmento que no cuadre EXACTO se descarta entero.
+
+     Formato versionado v2 (prefijo "#c2="): un flujo de bits, empaquetado en
+     bytes reales y pasado por base64url. Cada respuesta tiene 5 estados
+     posibles (sin responder, verde, ámbar, rojo, no lo sé) y le bastan 3
+     bits; la pregunta general tiene 4 (sin responder + 3 colores) y le
+     bastan 2. Con 144 alimentos: 2 + 144×3 = 434 bits → 55 bytes → unos
+     74 caracteres en base64url, frente a los ~200 del formato anterior
+     (que gastaba un carácter ASCII completo por respuesta antes de
+     codificar). El índice actual no se guarda aparte: se deriva del primer
+     hueco en el bloque de respuestas contiguo desde el principio, igual
+     que en la versión anterior.
+
+     Versionado: el prefijo "#c2=" identifica el formato. Cualquier enlace
+     que no empiece exactamente así (incluidos los del formato viejo
+     "#c=...") se descarta entero, sin intentar interpretarlo.
+
+     CRÍTICO: cualquier fragmento que no cuadre EXACTO (longitud, alfabeto,
+     valores en rango, bits de relleno a cero) se descarta entero.
      ============================================================ */
+  var FRAG_PREFIJO = "#c2=";
+  var BITS_GENERAL = 2;
+  var BITS_ALIMENTO = 3;
+  var TOTAL_BITS = TOTAL ? (BITS_GENERAL + TOTAL * BITS_ALIMENTO) : 0;
+  var TOTAL_BYTES = TOTAL ? Math.ceil(TOTAL_BITS / 8) : 0;
+  var PAYLOAD_LEN = (function(){
+    if(!TOTAL_BYTES) return 0;
+    var conRelleno = Math.ceil(TOTAL_BYTES / 3) * 4;
+    var relleno = (3 - (TOTAL_BYTES % 3)) % 3;
+    return conRelleno - relleno;
+  })();
+
   function base64UrlEncode(str){
     var b64 = btoa(str);
     return b64.replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
@@ -142,50 +169,84 @@
     return atob(b64);
   }
 
+  // Escritor de bits sobre un buffer de bytes ya reservado a cero.
+  function EscritorBits(nBytes){
+    this.bytes = new Uint8Array(nBytes);
+    this.pos = 0;
+  }
+  EscritorBits.prototype.escribir = function(valor, nBits){
+    for(var b = nBits - 1; b >= 0; b--){
+      if((valor >> b) & 1){
+        var i = this.pos >> 3, bit = 7 - (this.pos & 7);
+        this.bytes[i] |= (1 << bit);
+      }
+      this.pos++;
+    }
+  };
+
+  // Lector de bits sobre una cadena binaria (cada char, un byte 0-255).
+  function LectorBits(raw){
+    this.raw = raw;
+    this.pos = 0;
+  }
+  LectorBits.prototype.leer = function(nBits){
+    var v = 0;
+    for(var b = 0; b < nBits; b++){
+      var i = this.pos >> 3, bit = 7 - (this.pos & 7);
+      var bitVal = (this.raw.charCodeAt(i) >> bit) & 1;
+      v = (v << 1) | bitVal;
+      this.pos++;
+    }
+    return v;
+  };
+
   function codificarEstado(st){
     if(!TOTAL) return "";
-    var chars = [];
+    var w = new EscritorBits(TOTAL_BYTES);
     var g = st.respuestas["-1"];
-    chars.push((typeof g === "number" && g >= 0 && g <= 2) ? String(g) : ".");
+    w.escribir((typeof g === "number" && g >= 0 && g <= 2) ? g + 1 : 0, BITS_GENERAL);
     for(var i=0;i<TOTAL;i++){
       var r = st.respuestas[String(i)];
-      var v = KEY_A_VAL.hasOwnProperty(r) ? KEY_A_VAL[r] : undefined;
-      chars.push(v === undefined ? "." : String(v));
+      var v = KEY_A_VAL.hasOwnProperty(r) ? KEY_A_VAL[r] + 1 : 0;
+      w.escribir(v, BITS_ALIMENTO);
     }
-    return base64UrlEncode(chars.join(""));
+    var bin = "";
+    for(var k=0;k<w.bytes.length;k++) bin += String.fromCharCode(w.bytes[k]);
+    return base64UrlEncode(bin);
   }
 
   // Devuelve un estado válido o null. Nunca lanza, nunca confía en la forma de `payload`.
   function decodificarYValidar(payload){
-    if(typeof payload !== "string" || !payload.length || payload.length > 400) return null;
+    if(!TOTAL) return null;
+    if(typeof payload !== "string" || payload.length !== PAYLOAD_LEN) return null;
     if(!/^[A-Za-z0-9_-]+$/.test(payload)) return null; // solo alfabeto base64url
     var raw;
     try{ raw = base64UrlDecode(payload); }catch(e){ return null; }
-    if(typeof raw !== "string" || raw.length !== TOTAL + 1) return null;
+    if(typeof raw !== "string" || raw.length !== TOTAL_BYTES) return null;
 
-    for(var i=0;i<raw.length;i++){
-      var c = raw.charAt(i);
-      var permitido = (i === 0) ? /^[0-2.]$/ : /^[0-3.]$/;
-      if(!permitido.test(c)) return null;
-    }
+    var lector = new LectorBits(raw);
+    var gVal = lector.leer(BITS_GENERAL);
 
     var respuestas = {};
-    if(raw.charAt(0) !== ".") respuestas["-1"] = parseInt(raw.charAt(0), 10);
+    if(gVal > 0) respuestas["-1"] = gVal - 1;
 
     var maxContiguo = -1;
     var enBloqueContiguo = true;
-    for(var j=1;j<raw.length;j++){
-      var ch = raw.charAt(j);
-      var idxAlimento = j - 1;
-      if(ch === "."){ enBloqueContiguo = false; continue; }
-      var val = parseInt(ch, 10);
-      if(val < 0 || val > 3 || VAL_A_KEY[val] === undefined) return null;
-      respuestas[String(idxAlimento)] = VAL_A_KEY[val];
-      if(enBloqueContiguo) maxContiguo = idxAlimento;
+    for(var i=0;i<TOTAL;i++){
+      var val = lector.leer(BITS_ALIMENTO);
+      if(val > 4) return null; // 5, 6 y 7 no existen: fragmento manipulado
+      if(val === 0){ enBloqueContiguo = false; continue; }
+      respuestas[String(i)] = VAL_A_KEY[val - 1];
+      if(enBloqueContiguo) maxContiguo = i;
     }
 
+    // Los bits de relleno hasta completar el último byte deben ser cero:
+    // si no lo son, el fragmento no salió de este código.
+    var relleno = TOTAL_BYTES * 8 - TOTAL_BITS;
+    if(relleno > 0 && lector.leer(relleno) !== 0) return null;
+
     var indice;
-    if(raw.charAt(0) === "." && maxContiguo === -1) indice = -1;
+    if(gVal === 0 && maxContiguo === -1) indice = -1;
     else indice = Math.min(TOTAL, maxContiguo + 1);
 
     return { v: 1, respuestas: respuestas, indice: indice, ts: Date.now() };
@@ -194,11 +255,12 @@
   // Procesa el fragmento de la URL al arrancar. Si es válido, lo DEVUELVE sin tocar nada
   // más: no pisa lo que hubiera guardado. Es `iniciar()` quien decide si se aplica directo
   // o si hay que preguntar. Si no es válido (basura, longitud incorrecta, caracteres fuera
-  // de rango, un <script> metido a mano...), se descarta entero y devuelve null.
+  // de rango, formato de otra versión, un <script> metido a mano...), se descarta entero y
+  // devuelve null.
   function procesarFragmentoDeEntrada(){
     var h = location.hash || "";
-    if(h.indexOf("#c=") !== 0) return null;
-    var payload = h.slice(3);
+    if(h.indexOf(FRAG_PREFIJO) !== 0) return null;
+    var payload = h.slice(FRAG_PREFIJO.length);
     var parsed = null;
     try{ parsed = decodificarYValidar(payload); }catch(e){ parsed = null; }
     try{ history.replaceState(null, "", location.pathname + location.search); }catch(e){}
@@ -207,7 +269,7 @@
 
   function construirEnlaceContinuacion(){
     var payload = codificarEstado(state);
-    return location.origin + location.pathname + "#c=" + payload;
+    return location.origin + location.pathname + FRAG_PREFIJO + payload;
   }
 
   /* ============================================================
@@ -540,7 +602,7 @@
         el("span", {class:"dot" + (o.hueco?" hueco":"")}),
         el("span", {class:"tx", text:o.texto})
       ]);
-      fila.addEventListener("click", function(){ seleccionar(i, o.key, fila, opsWrap); });
+      fila.addEventListener("click", function(){ manejarClicOpcion(i, o.key, fila, opsWrap); });
       opsWrap.appendChild(fila);
     });
 
@@ -560,6 +622,43 @@
     return contenido;
   }
 
+  /* ============================================================
+     ANTI-PÉRDIDA DE TOQUES RÁPIDOS
+     Entre que se marca una opción (300ms) y termina el deslizamiento a la
+     siguiente pantalla, la pantalla del alimento actual sigue en el DOM y
+     seguiría escuchando: un segundo toque ahí volvería a disparar
+     `seleccionar` para el MISMO índice, duplicando el avance programado y
+     pisando la respuesta real de la siguiente pregunta. `bloqueadoOpciones`
+     cierra esa ventana: mientras esté activo, cualquier toque en una
+     opción se ENCOLA en vez de perderse o de duplicar el avance, y se
+     aplica en cuanto la pantalla siguiente esté lista para recibirlo.
+     ============================================================ */
+  var bloqueadoOpciones = false;
+  var colaToques = [];
+
+  function manejarClicOpcion(i, key, filaEl, opsWrap){
+    if(bloqueadoOpciones){
+      colaToques.push(key);
+      return;
+    }
+    bloqueadoOpciones = true;
+    seleccionar(i, key, filaEl, opsWrap);
+  }
+
+  // Se llama justo cuando una pantalla de alimento queda lista para recibir toques
+  // (tras cualquier transición). Libera el cerrojo y, si había toques en espera,
+  // aplica el siguiente ya mismo sobre la pantalla recién llegada.
+  function prepararEntradaAlimento(){
+    bloqueadoOpciones = false;
+    if(!colaToques.length) return;
+    if(state.indice < 0 || state.indice >= TOTAL){ colaToques.length = 0; return; }
+    var key = colaToques.shift();
+    var opsWrap = app.querySelector(".ops");
+    var filaEl = opsWrap && opsWrap.querySelector('[data-key="'+key+'"]');
+    if(filaEl){ manejarClicOpcion(state.indice, key, filaEl, opsWrap); }
+    else { colaToques.length = 0; }
+  }
+
   function seleccionar(i, key, filaEl, opsWrap){
     marcarFila(filaEl, opsWrap.children);
     state.respuestas[String(i)] = key;
@@ -573,11 +672,19 @@
       // último alimento del test entero: directo al mapa, sin respiro
       state.indice = TOTAL;
       guardar();
+      // No hay más alimentos por delante: cualquier toque en espera no tiene
+      // dónde aplicarse.
+      bloqueadoOpciones = false;
+      colaToques.length = 0;
       mostrarPantallaActual();
       return;
     }
     var info = CATINFO[i];
     if(info.esUltimaDeSuCategoria){
+      // El respiro exige pulsar "Seguir" a propósito: un toque en espera no se
+      // traslada ahí.
+      bloqueadoOpciones = false;
+      colaToques.length = 0;
       mostrarRespiro(i);
     }else{
       avanzarASiguienteAlimento(i, i + 1);
@@ -599,6 +706,7 @@
       app.innerHTML = "";
       app.appendChild(pantallaAlimento(iSiguiente));
       window.scrollTo(0, 0);
+      prepararEntradaAlimento();
       return;
     }
     var nuevo = pantallaAlimento(iSiguiente);
@@ -614,6 +722,7 @@
       if(actual.parentNode){ actual.parentNode.removeChild(actual); }
       nuevo.classList.remove("m2-entrando", "m2-entra");
       window.scrollTo(0, 0);
+      prepararEntradaAlimento();
     }, 300);
   }
 
@@ -864,6 +973,11 @@
   }
 
   function mostrarPantallaActual(){
+    // Cualquier navegación que pase por aquí es explícita (retomar, "atrás", mapa,
+    // final): no es el avance encadenado de toques rápidos, así que no hay toque
+    // en espera que tenga sentido aplicar. Se limpia el cerrojo por si acaso.
+    bloqueadoOpciones = false;
+    colaToques.length = 0;
     if(state.indice === -1){
       mostrar(pantallaGeneral, "light");
     }else if(state.indice >= 0 && state.indice < TOTAL){
@@ -876,6 +990,8 @@
   }
 
   function irAtras(){
+    bloqueadoOpciones = false;
+    colaToques.length = 0;
     if(state.indice <= 0){
       state.indice = -1;
       guardar();
