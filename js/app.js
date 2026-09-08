@@ -129,35 +129,46 @@
      CODIFICACIÓN COMPACTA PARA EL ENLACE DE CONTINUACIÓN
      El fragmento nunca viaja a ningún servidor: vive solo en la URL local.
 
-     Formato versionado v2 (prefijo "#c2="): un flujo de bits, empaquetado en
-     bytes reales y pasado por base64url. Cada respuesta tiene 5 estados
-     posibles (sin responder, verde, ámbar, rojo, no lo sé) y le bastan 3
-     bits; la pregunta general tiene 4 (sin responder + 3 colores) y le
-     bastan 2. Con 144 alimentos: 2 + 144×3 = 434 bits → 55 bytes → unos
-     74 caracteres en base64url, frente a los ~200 del formato anterior
-     (que gastaba un carácter ASCII completo por respuesta antes de
-     codificar). El índice actual no se guarda aparte: se deriva del primer
-     hueco en el bloque de respuestas contiguo desde el principio, igual
-     que en la versión anterior.
+     Formato versionado v3 (prefijo "#c3="): un flujo de bits, empaquetado en
+     bytes reales y pasado por base64url. Igual que v2, cada respuesta de
+     alimento tiene 5 estados (sin responder, verde, ámbar, rojo, no lo sé:
+     3 bits) y la pregunta general tiene 4 (sin responder + 3 colores: 2
+     bits). La diferencia es que v2 codificaba SIEMPRE los 144 alimentos
+     aunque solo se hubiera respondido a los 10 primeros, produciendo una
+     cola larga de ceros. v3 codifica solo hasta el último alimento
+     respondido: los 8 primeros bits del flujo son "n" (cuántos alimentos
+     van codificados, 0-144), y detrás van exactamente esos n × 3 bits — los
+     huecos por debajo de ese punto se codifican como "sin responder" con
+     normalidad, sin compactar ni reordenar nada. Con 20 alimentos el
+     enlace mide un puñado de caracteres; con las 144 completas, unos 76
+     (uno más que v2, por la cabecera).
 
-     Versionado: el prefijo "#c2=" identifica el formato. Cualquier enlace
-     que no empiece exactamente así (incluidos los del formato viejo
-     "#c=...") se descarta entero, sin intentar interpretarlo.
+     Versionado: el prefijo "#c3=" identifica el formato. Cualquier enlace
+     que no empiece exactamente así (incluidos los formatos viejos "#c2="
+     y "#c=") se descarta entero, sin intentar interpretarlo.
 
-     CRÍTICO: cualquier fragmento que no cuadre EXACTO (longitud, alfabeto,
-     valores en rango, bits de relleno a cero) se descarta entero.
+     CRÍTICO: cualquier fragmento que no cuadre EXACTO (longitud según su
+     propia cabecera, alfabeto, valores en rango, bits de relleno a cero)
+     se descarta entero.
      ============================================================ */
-  var FRAG_PREFIJO = "#c2=";
+  var FRAG_PREFIJO = "#c3=";
+  var BITS_N = 8; // cabecera: cuántos alimentos van codificados (0-144 cabe en 8 bits)
   var BITS_GENERAL = 2;
   var BITS_ALIMENTO = 3;
-  var TOTAL_BITS = TOTAL ? (BITS_GENERAL + TOTAL * BITS_ALIMENTO) : 0;
-  var TOTAL_BYTES = TOTAL ? Math.ceil(TOTAL_BITS / 8) : 0;
-  var PAYLOAD_LEN = (function(){
-    if(!TOTAL_BYTES) return 0;
-    var conRelleno = Math.ceil(TOTAL_BYTES / 3) * 4;
-    var relleno = (3 - (TOTAL_BYTES % 3)) % 3;
+
+  // Bytes y longitud de payload (base64url sin relleno) para "n" alimentos codificados.
+  function bytesParaN(n){
+    var bits = BITS_N + BITS_GENERAL + n * BITS_ALIMENTO;
+    return Math.ceil(bits / 8);
+  }
+  function payloadLenParaN(n){
+    var bytes = bytesParaN(n);
+    var conRelleno = Math.ceil(bytes / 3) * 4;
+    var relleno = (3 - (bytes % 3)) % 3;
     return conRelleno - relleno;
-  })();
+  }
+  var PAYLOAD_LEN_MIN = TOTAL ? payloadLenParaN(0) : 0;
+  var PAYLOAD_LEN_MAX = TOTAL ? payloadLenParaN(TOTAL) : 0;
 
   function base64UrlEncode(str){
     var b64 = btoa(str);
@@ -200,12 +211,25 @@
     return v;
   };
 
+  // "n" = número de alimentos a codificar: el último índice respondido + 1.
+  // Por debajo de ese punto, los huecos sin responder se codifican tal cual (0),
+  // sin compactar ni reordenar: cada posición del flujo sigue siendo su alimento.
+  function calcularNCodificado(st){
+    var n = 0;
+    for(var i=0;i<TOTAL;i++){
+      if(KEY_A_VAL.hasOwnProperty(st.respuestas[String(i)])) n = i + 1;
+    }
+    return n;
+  }
+
   function codificarEstado(st){
     if(!TOTAL) return "";
-    var w = new EscritorBits(TOTAL_BYTES);
+    var n = calcularNCodificado(st);
+    var w = new EscritorBits(bytesParaN(n));
+    w.escribir(n, BITS_N);
     var g = st.respuestas["-1"];
     w.escribir((typeof g === "number" && g >= 0 && g <= 2) ? g + 1 : 0, BITS_GENERAL);
-    for(var i=0;i<TOTAL;i++){
+    for(var i=0;i<n;i++){
       var r = st.respuestas[String(i)];
       var v = KEY_A_VAL.hasOwnProperty(r) ? KEY_A_VAL[r] + 1 : 0;
       w.escribir(v, BITS_ALIMENTO);
@@ -218,21 +242,29 @@
   // Devuelve un estado válido o null. Nunca lanza, nunca confía en la forma de `payload`.
   function decodificarYValidar(payload){
     if(!TOTAL) return null;
-    if(typeof payload !== "string" || payload.length !== PAYLOAD_LEN) return null;
+    if(typeof payload !== "string") return null;
+    if(payload.length < PAYLOAD_LEN_MIN || payload.length > PAYLOAD_LEN_MAX) return null;
     if(!/^[A-Za-z0-9_-]+$/.test(payload)) return null; // solo alfabeto base64url
     var raw;
     try{ raw = base64UrlDecode(payload); }catch(e){ return null; }
-    if(typeof raw !== "string" || raw.length !== TOTAL_BYTES) return null;
+    if(typeof raw !== "string") return null;
 
     var lector = new LectorBits(raw);
-    var gVal = lector.leer(BITS_GENERAL);
+    var n = lector.leer(BITS_N);
+    if(n < 0 || n > TOTAL) return null; // cabecera manipulada o de otro tamaño de test
 
+    // La longitud tiene que cuadrar EXACTA con lo que dice la propia cabecera: ni un
+    // byte ni un carácter de más o de menos.
+    if(raw.length !== bytesParaN(n)) return null;
+    if(payload.length !== payloadLenParaN(n)) return null;
+
+    var gVal = lector.leer(BITS_GENERAL);
     var respuestas = {};
     if(gVal > 0) respuestas["-1"] = gVal - 1;
 
     var maxContiguo = -1;
     var enBloqueContiguo = true;
-    for(var i=0;i<TOTAL;i++){
+    for(var i=0;i<n;i++){
       var val = lector.leer(BITS_ALIMENTO);
       if(val > 4) return null; // 5, 6 y 7 no existen: fragmento manipulado
       if(val === 0){ enBloqueContiguo = false; continue; }
@@ -242,7 +274,7 @@
 
     // Los bits de relleno hasta completar el último byte deben ser cero:
     // si no lo son, el fragmento no salió de este código.
-    var relleno = TOTAL_BYTES * 8 - TOTAL_BITS;
+    var relleno = bytesParaN(n) * 8 - (BITS_N + BITS_GENERAL + n * BITS_ALIMENTO);
     if(relleno > 0 && lector.leer(relleno) !== 0) return null;
 
     var indice;
