@@ -393,4 +393,43 @@ img{-webkit-user-drag:none}
    que vive siempre en modo petróleo con fondo dorado de reposo. */
 #luz[data-modo="dark"] .scr-respiro .seguir.hecho{background:var(--bg-screen);color:var(--dorado);border:1px solid var(--dorado)}
 
+/* ================================================================
+   ESCRITORIO — columna centrada de ancho acotado
+   El mismo diseño de móvil, contenido dentro de una medida sensata,
+   sobre el fondo del modo extendido a todo el ancho del monitor.
+   Columna base: 480px (encaja con los max-width de 440-460px ya usados
+   dentro de cada pantalla). El mapa usa 820px para que las fichas
+   respiren en más columnas sin dejar de estar acotado.
+   La pantalla de alimento conserva su propio tratamiento de dos
+   columnas: aquí solo se le pone techo de ancho total.
+   ================================================================ */
+@media (min-width:760px){
+  #app{justify-content:center}
+
+  .txtscr,
+  .scr-portada,
+  .scr-respiro{
+    flex:0 0 auto;
+    min-height:0;
+    width:100%;
+    max-width:480px;
+    margin:0 auto;
+  }
+
+  .scr-mapa{
+    flex:0 0 auto;
+    min-height:0;
+    width:100%;
+    max-width:820px;
+    margin:0 auto;
+  }
+  .scr-mapa .rej{grid-template-columns:repeat(auto-fill,minmax(128px,1fr))}
+
+  .scr-alimento{
+    width:100%;
+    max-width:1080px;
+    margin:0 auto;
+  }
+}
+
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
