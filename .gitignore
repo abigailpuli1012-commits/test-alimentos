@@ -1,0 +1,27 @@
+# Lista BLANCA a propósito: se ignora todo y se permite solo lo que se publica.
+#
+# Esta carpeta se sube entera a GitHub Pages, así que todo lo que quede fuera de esta
+# lista quedaría accesible en internet. Con lista negra bastaba con crear un archivo
+# nuevo para publicarlo sin darse cuenta; con lista blanca, lo nuevo no sube salvo que
+# alguien lo añada aquí a conciencia.
+#
+# Aquí dentro NO van nunca: maquetas de trabajo, informes, notas, ni datos del titular.
+
+*
+
+# La web
+!index.html
+!favicon.svg
+!.gitignore
+
+# Sus carpetas (primero la carpeta, luego su contenido: git lo necesita así)
+!css/
+!css/**
+!js/
+!js/**
+!data/
+!data/**
+!img/
+!img/**
+!fuentes/
+!fuentes/**

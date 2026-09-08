@@ -1,0 +1,396 @@
+/* Test de Alimentos — Soberanía Biológica
+   Tipografía autoalojada. Prohibido cualquier @import o <link> a fuentes externas. */
+
+@font-face{
+  font-family:'Cormorant Garamond';
+  font-style:normal; font-weight:400;
+  font-display:swap;
+  src:url('../fuentes/cormorant-garamond-400.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Cormorant Garamond';
+  font-style:normal; font-weight:500;
+  font-display:swap;
+  src:url('../fuentes/cormorant-garamond-500.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Cormorant Garamond';
+  font-style:normal; font-weight:600;
+  font-display:swap;
+  src:url('../fuentes/cormorant-garamond-600.woff2') format('woff2');
+}
+
+:root{
+  --petroleo:#032532; --medio:#123944; --marfil:#F4F1E9; --blanco:#FFFFFF;
+  --dorado:#B6A47A; --gris:#94A4AC;
+  --verde:#7E9B76; --ambar:#CB9151; --rojo:#A65A4A;
+  --serif:'Cormorant Garamond',Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --r:12px;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:var(--sans);
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+button{font-family:inherit;cursor:pointer;background:none;border:0;color:inherit}
+img{-webkit-user-drag:none}
+
+/* ================================================================
+   EL MARCO QUE HACE LA TRANSICIÓN DE MODO
+   ================================================================ */
+#luz{
+  min-height:100dvh;
+  background:var(--bg-screen);
+  color:var(--txt-title);
+  filter:brightness(1);
+  transition:filter .22s ease-in;
+  display:flex;
+  flex-direction:column;
+}
+#luz.baja{filter:brightness(.05);transition:filter .2s ease-in}
+#luz.sube{transition:filter .32s cubic-bezier(.22,.7,.32,1)}
+
+#luz[data-modo="light"]{
+  --bg-screen:#F4F1E9; --bg-card:#FFFFFF; --card-line:rgba(3,37,50,.13);
+  --txt-title:#032532; --txt-body:#123944; --txt-muted:#94A4AC;
+  --cta-bg:#032532; --cta-txt:#F4F1E9;
+  --rail-track:rgba(3,37,50,.22); --num-color:#032532;
+}
+#luz[data-modo="dark"]{
+  --bg-screen:#032532; --bg-card:#123944; --card-line:rgba(244,241,233,.18);
+  --txt-title:#F4F1E9; --txt-body:rgba(244,241,233,.82); --txt-muted:#94A4AC;
+  --cta-bg:#B6A47A; --cta-txt:#032532;
+  --rail-track:rgba(244,241,233,.2); --num-color:#F4F1E9;
+}
+
+@media (prefers-reduced-motion:reduce){
+  #luz{transition:none!important}
+  #luz.baja{filter:brightness(1)!important}
+}
+
+#app{flex:1;display:flex;flex-direction:column;min-height:100dvh;position:relative}
+
+/* ================================================================
+   PANTALLAS DE TEXTO PURO — bienvenida, general, final, retomar
+   ================================================================ */
+.txtscr{
+  flex:1; display:flex; flex-direction:column; min-height:100dvh;
+  padding:64px 22px 34px 28px;
+}
+.txtscr h1{
+  font-family:var(--serif); font-weight:600; font-size:clamp(26px,7vw,36px);
+  line-height:1.18; max-width:440px; color:var(--txt-title);
+}
+.txtscr .parrafos{margin-top:24px;display:flex;flex-direction:column;gap:15px;max-width:460px}
+.txtscr .parrafos p{font-size:14.5px;font-weight:300;line-height:1.65;color:var(--txt-body)}
+.txtscr .nota{margin-top:18px;font-size:12.5px;font-weight:300;line-height:1.6;color:var(--txt-muted);max-width:440px}
+.txtscr .relleno{flex:1 1 auto;min-height:16px}
+.txtscr .cta{
+  margin-top:auto; display:block; width:100%; max-width:460px;
+  background:var(--cta-bg); color:var(--cta-txt);
+  border-radius:var(--r); font:400 15px/1 var(--sans); letter-spacing:.02em;
+  min-height:58px; text-align:center;
+}
+
+/* opciones de la pregunta general */
+.ops-generales{margin-top:28px;display:flex;flex-direction:column;gap:9px;max-width:460px}
+.op-general{
+  display:flex;align-items:center;gap:15px;width:100%;min-height:58px;
+  font:inherit;text-align:left;background:var(--bg-card);
+  border:1px solid var(--card-line);border-radius:var(--r);padding:0 16px;color:var(--txt-body);
+  transition:border-color .16s;
+}
+.op-general:hover,.op-general:focus-visible{border-color:var(--dorado)}
+.op-general .dot{flex:0 0 auto;width:11px;height:11px;border-radius:50%;background:var(--c);transition:transform .22s cubic-bezier(.22,1,.36,1)}
+.op-general .tx{font-size:15px;font-weight:300}
+.op-general{transition:transform .09s cubic-bezier(.4,0,1,1),color .18s cubic-bezier(.22,1,.36,1),border-color .18s cubic-bezier(.22,1,.36,1)}
+.op-general.presiona{transform:scale(.983)}
+.op-general.sel{color:var(--txt-title);border-color:var(--c);transform:scale(1)}
+.op-general.sel .tx{font-weight:400}
+.op-general.sel .dot{transform:scale(1.65)}
+
+/* retomar */
+.retomar-caja{margin-top:30px;display:flex;flex-direction:column;gap:12px;max-width:460px}
+.retomar-caja button{
+  min-height:58px;border-radius:var(--r);font-size:14.5px;letter-spacing:.02em;
+}
+.retomar-caja .principal{background:var(--petroleo);color:var(--marfil)}
+.retomar-caja .secundaria{background:transparent;border:1px solid rgba(3,37,50,.2);color:var(--medio)}
+.retomar-caja .secundaria:hover{border-color:var(--dorado)}
+
+/* ================================================================
+   PORTADA — mosaico
+   ================================================================ */
+.scr-portada{flex:1;display:flex;flex-direction:column;min-height:100dvh}
+.mosaico{
+  flex:0 0 42vh; min-height:230px; max-height:440px;
+  width:100%;display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(4,minmax(0,1fr));
+  gap:2px;background:var(--bg-screen);overflow:hidden;
+}
+.mosaico img{width:100%;height:100%;min-width:0;min-height:0;object-fit:cover;display:block}
+.mosaico .m-a{grid-column:1/3;grid-row:1/3}
+.mosaico .m-b{grid-column:3/4;grid-row:1/2}
+.mosaico .m-c{grid-column:3/4;grid-row:2/4}
+.mosaico .m-d{grid-column:1/2;grid-row:3/5}
+.mosaico .m-e{grid-column:2/3;grid-row:3/4}
+.mosaico .m-f{grid-column:2/4;grid-row:4/5}
+
+.portadaCuerpo{flex:1;display:flex;flex-direction:column;padding:24px 22px 30px 28px;min-height:0}
+.portadaCuerpo h1{font-family:var(--serif);font-weight:600;font-size:clamp(22px,6vw,28px);line-height:1.18;max-width:440px;color:var(--txt-title)}
+.portadaCuerpo .parrafos{margin-top:14px;display:flex;flex-direction:column;gap:10px;max-width:460px}
+.portadaCuerpo .parrafos p{font:300 13.5px/1.6 var(--sans);color:var(--txt-body)}
+.portadaCuerpo .nota{margin-top:12px;font:300 11.5px/1.55 var(--sans);color:var(--txt-muted);max-width:460px}
+.portadaCuerpo .relleno{flex:1 1 auto;min-height:10px}
+.portadaCuerpo .cta{
+  margin-top:8px;display:block;width:100%;max-width:460px;background:var(--cta-bg);color:var(--cta-txt);
+  border-radius:var(--r);font:400 15px/1 var(--sans);letter-spacing:.02em;
+  min-height:58px;text-align:center;
+}
+
+/* ================================================================
+   PANTALLA DE ALIMENTO — la definitiva
+   ================================================================ */
+.scr-alimento{flex:1;display:flex;flex-direction:column;min-height:100dvh;position:relative}
+
+.rail{position:absolute;top:0;left:0;right:0;z-index:3;height:3px;background:var(--rail-track)}
+.rail i{position:absolute;left:0;top:0;height:100%;background:var(--dorado);transition:width .25s ease}
+
+.band{flex:0 0 46px;padding:19px 22px 0 28px;display:flex;justify-content:space-between;align-items:center}
+.band .cat{font-size:10px;letter-spacing:.19em;text-transform:uppercase;color:var(--txt-muted)}
+.band .atras{
+  color:var(--txt-muted);font-size:12px;letter-spacing:.03em;
+  padding:10px 6px;min-height:44px;min-width:44px;display:flex;align-items:center;
+  transition:color .18s;
+}
+.band .atras:hover,.band .atras:focus-visible{color:var(--txt-title)}
+
+.cuerpoAlimento{flex:1;display:flex;flex-direction:column;min-height:0}
+
+.foto{display:block;flex:0 0 42vh;min-height:230px;max-height:460px;width:100%;height:42vh;object-fit:cover;background:#e6e2d7}
+
+.panel{flex:1;display:flex;flex-direction:column;min-height:0}
+
+.ident{flex:0 0 auto;padding:18px 22px 0 28px;display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.ident .nm{font-family:var(--serif);font-weight:500;font-size:22px;line-height:1.2;letter-spacing:.01em;color:var(--txt-title)}
+.ident .q{margin-left:auto;font-size:12.5px;font-weight:300;color:var(--txt-muted);white-space:nowrap}
+
+.ops{margin-top:auto;flex:0 0 auto;padding:22px 22px 0 28px;display:flex;flex-direction:column;gap:8px}
+.op{
+  display:flex;align-items:center;gap:15px;width:100%;min-height:58px;
+  font:inherit;text-align:left;background:var(--bg-card);
+  border:1px solid var(--card-line);border-radius:var(--r);padding:0 16px;color:var(--txt-body);
+  transition:transform .09s cubic-bezier(.4,0,1,1),color .18s cubic-bezier(.22,1,.36,1),border-color .18s cubic-bezier(.22,1,.36,1);
+}
+.op .dot{flex:0 0 auto;width:11px;height:11px;border-radius:50%;background:var(--c);transition:transform .22s cubic-bezier(.22,1,.36,1)}
+.op .dot.hueco{background:none;border:1px solid var(--txt-muted)}
+.op .tx{font-size:15px;font-weight:300;letter-spacing:.012em}
+.op:hover{color:var(--txt-title)}
+.op.presiona{transform:scale(.983)}
+.op.sel{color:var(--txt-title);border-color:var(--c);transform:scale(1)}
+.op.sel .tx{font-weight:400}
+.op.sel .dot{transform:scale(1.65)}
+
+.foot{flex:0 0 44px;padding:17px 22px 0 28px;font-size:10.5px;font-weight:300;letter-spacing:.02em;color:var(--txt-muted)}
+.foot[hidden]{display:block;visibility:hidden}
+
+/* ---- Momento 2 · paso al siguiente alimento (deslizamiento breve) ----
+   Solo entre alimentos dentro del mismo modo de color. No se usa en la
+   bajada de luz de portada/respiro: esa transición se queda igual. */
+.scr-alimento.m2-saliendo{
+  position:absolute;top:0;left:0;right:0;z-index:2;
+  transition:opacity .13s cubic-bezier(.4,0,1,1),transform .16s cubic-bezier(.4,0,1,1);
+}
+.scr-alimento.m2-saliendo.m2-fuera{opacity:0;transform:translateY(-5px)}
+.scr-alimento.m2-entrando{
+  position:absolute;top:0;left:0;right:0;z-index:1;
+  opacity:0;transform:translateY(7px);
+}
+.scr-alimento.m2-entrando.m2-entra{
+  opacity:1;transform:translateY(0);
+  transition:opacity .22s cubic-bezier(.22,1,.36,1) .06s,transform .22s cubic-bezier(.22,1,.36,1) .06s;
+}
+
+/* Escritorio: dos columnas — foto izquierda, contenido derecha */
+@media (min-width:760px){
+  .cuerpoAlimento{flex-direction:row}
+  .foto{flex:0 0 48%;width:48%;height:calc(100dvh - 46px);max-height:none;min-height:0}
+  .panel{flex:1;justify-content:center;padding:0 56px 0 40px;max-width:560px}
+  .ident{padding:0;margin-bottom:0}
+  .ops{margin-top:26px;padding:0}
+  .foot{padding:17px 0 0 0}
+}
+
+/* ================================================================
+   PANTALLA DE RESPIRO
+   ================================================================ */
+.scr-respiro{flex:1;display:flex;flex-direction:column;min-height:100dvh;padding:64px 22px 34px 28px}
+.scr-respiro .linea{font-family:var(--serif);font-weight:500;font-size:clamp(24px,6vw,31px);line-height:1.24;max-width:460px;color:var(--txt-title)}
+.scr-respiro .barrablk{margin-top:52px;max-width:460px}
+.scr-respiro .barra{width:100%;height:10px;border-radius:5px;background:var(--rail-track);overflow:hidden}
+.scr-respiro .barra i{display:block;height:100%;background:var(--dorado);border-radius:5px;transition:width .4s ease}
+.scr-respiro .cifras{margin-top:16px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.scr-respiro .cifras b{font-family:var(--serif);font-weight:600;font-size:38px;line-height:1;color:var(--num-color)}
+.scr-respiro .cifras span{font-size:12.5px;font-weight:300;color:var(--txt-muted)}
+.scr-respiro .quedan{margin-top:6px;font-size:13px;font-weight:300;color:var(--txt-body)}
+.scr-respiro .tiempo{margin-top:20px;display:inline-block;font-size:12.5px;font-weight:400;color:var(--txt-title);border:1px solid var(--card-line);border-radius:var(--r);padding:9px 14px}
+.scr-respiro .tiempo b{color:var(--dorado);font-weight:500}
+
+.scr-respiro .enlace{margin-top:26px;max-width:460px;border-top:1px solid var(--card-line);padding-top:20px}
+.scr-respiro .enlace .et{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--txt-muted)}
+.scr-respiro .enlace p.desc{margin-top:8px;font-size:12px;font-weight:300;line-height:1.6;color:var(--txt-body)}
+.scr-respiro .btnEnlace{
+  margin-top:12px;display:inline-block;background:transparent;color:var(--txt-title);
+  border:1px solid var(--card-line);border-radius:var(--r);
+  font:400 13px/1 var(--sans);letter-spacing:.02em;padding:13px 18px;min-height:48px;
+}
+.scr-respiro .btnEnlace:hover{border-color:var(--dorado)}
+.scr-respiro .copiado{margin-top:10px;font-size:12px;color:var(--dorado);min-height:16px}
+
+.scr-respiro .seguir{
+  margin-top:auto;display:block;width:100%;max-width:460px;background:var(--cta-bg);color:var(--cta-txt);
+  border-radius:var(--r);font:400 14px/1 var(--sans);letter-spacing:.02em;
+  min-height:58px;text-align:center;
+}
+
+/* ================================================================
+   PANTALLA DEL MAPA — pliego de herbario compuesto por fichas de fichero
+   ================================================================ */
+.scr-mapa{flex:1;display:flex;flex-direction:column;min-height:100dvh;padding:60px 22px 40px 28px}
+
+.mapa-pantalla h1,
+.mapa-impresion h1{font-family:var(--serif);font-weight:600;color:var(--txt-title);font-size:clamp(24px,6vw,30px);line-height:1.1}
+.mapa-pantalla .sub,
+.mapa-impresion .sub{font-family:var(--serif);font-weight:500;font-style:italic;color:var(--txt-body);margin-top:4px;font-size:14px}
+
+/* línea de registro — fecha y número de ejemplares, discreta */
+.reg{margin-top:14px;padding-top:9px;border-top:1px solid var(--card-line);
+  font-family:ui-monospace,'SFMono-Regular','Consolas','Liberation Mono',monospace;
+  font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--txt-muted)}
+
+/* bandas de color */
+.bandas{margin-top:8px}
+.banda{margin-top:28px}
+.banda>.tit{display:flex;align-items:baseline;gap:8px;border-bottom:1px solid var(--txt-title);padding-bottom:7px}
+.banda>.tit i{width:10px;height:10px;border-radius:50%;flex:0 0 auto;transform:translateY(1px)}
+.banda>.tit b{letter-spacing:.16em;text-transform:uppercase;color:var(--txt-title);font-weight:500;font-size:10.5px}
+.banda>.tit em{font-style:normal;margin-left:auto;font-family:ui-monospace,'SFMono-Regular','Consolas','Liberation Mono',monospace;color:var(--txt-body);font-size:10.5px}
+.banda>.vacio{margin-top:10px;font-size:11.5px;font-weight:300;color:var(--txt-muted)}
+
+/* categoría dentro de banda */
+.fam{margin-top:16px;margin-bottom:2px}
+.fam>.f{letter-spacing:.18em;text-transform:uppercase;color:var(--txt-muted);display:flex;justify-content:space-between;font-size:8.5px;margin-bottom:8px}
+
+/* rejilla: 3 columnas — ficha ancha para que el nombre nunca se corte */
+.rej{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+
+/* ficha-mini: la unidad del fichero, con muesca de color en el canto */
+.ficha-mini{position:relative;background:var(--blanco);border:1px solid var(--card-line);border-radius:12px;overflow:hidden}
+.ficha-mini .muesca{position:absolute;top:0;left:0;right:0;z-index:2;height:5px}
+.ficha-mini img{width:100%;object-fit:cover;background:var(--marfil);aspect-ratio:1;display:block}
+.ficha-mini .et{font-family:var(--sans);color:var(--txt-body);display:block;font-size:9px;line-height:1.28;
+  padding:6px 6px 0;white-space:normal;overflow-wrap:break-word;hyphens:auto}
+.ficha-mini .sig{font-family:ui-monospace,'SFMono-Regular','Consolas','Liberation Mono',monospace;color:var(--txt-muted);display:block;font-size:7.5px;padding:2px 6px 6px}
+
+/* cierre — la única frase que queda, una sola vez, al final de todo */
+.cierre{margin-top:34px;padding-top:16px;border-top:1px solid var(--card-line)}
+.cierre p{font-family:var(--serif);font-style:italic;font-weight:500;color:var(--txt-body);font-size:13px;line-height:1.6;max-width:640px}
+
+.scr-mapa .acciones{margin-top:26px;display:flex;gap:10px;flex-wrap:wrap}
+.scr-mapa .acciones button{
+  min-height:48px;border:1px solid var(--card-line);border-radius:var(--r);
+  font:400 13px/1 var(--sans);letter-spacing:.02em;padding:0 18px;color:var(--txt-title);background:transparent;
+}
+.scr-mapa .acciones button:hover{border-color:var(--dorado)}
+.scr-mapa .continuar{
+  margin-top:14px;display:block;width:100%;max-width:460px;background:var(--txt-title);color:var(--bg-screen);
+  border-radius:var(--r);font:400 14px/1 var(--sans);letter-spacing:.02em;min-height:58px;text-align:center;
+}
+
+/* la versión de impresión vive siempre en el DOM, oculta en pantalla */
+.mapa-impresion{display:none}
+
+@media print{
+  body{background:#fff}
+  body *{visibility:hidden}
+  .scr-mapa, .scr-mapa *{visibility:visible}
+  .scr-mapa{position:absolute;left:0;top:0;padding:0;width:100%;min-height:0;color:#032532}
+  .scr-mapa .mapa-pantalla, .scr-mapa .acciones, .scr-mapa .continuar{display:none!important}
+  .scr-mapa .mapa-impresion{display:block}
+  @page{size:A4 landscape;margin:8mm}
+
+  .mapa-impresion{font-family:var(--sans)}
+  .mapa-impresion .top{display:flex;justify-content:space-between;align-items:baseline;gap:20px;
+    border-bottom:1px solid #032532;padding-bottom:10px}
+  .mapa-impresion h1{font-size:24px;color:#032532}
+  .mapa-impresion .sub{font-size:12px;color:#123944}
+  .mapa-impresion .reg{color:#94A4AC;border-top:0}
+  .mapa-impresion .cols{margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:0 18px}
+  .mapa-impresion .banda{margin-top:0;border-bottom:0}
+  .mapa-impresion .banda>.tit{border-bottom:1px solid #032532;padding-bottom:4px;margin-bottom:6px}
+  .mapa-impresion .banda>.tit b{font-size:9px;color:#032532}
+  .mapa-impresion .banda>.tit em{font-size:9px;color:#123944}
+  .mapa-impresion .fam{margin-top:0;margin-bottom:6px}
+  .mapa-impresion .fam>.f{font-size:6px;color:#94A4AC;margin-bottom:3px}
+  .mapa-impresion .rej{grid-template-columns:repeat(8,1fr);gap:2px}
+  .mapa-impresion .ficha-mini{border-radius:4px;border-color:#e4e0d4}
+  .mapa-impresion .ficha-mini .muesca{height:2px}
+  .mapa-impresion .cierre{margin-top:10px;padding-top:8px;border-top:1px solid #ccc}
+  .mapa-impresion .cierre p{font-size:10.5px;color:#123944;max-width:100%}
+
+  .scr-mapa .aviso-legal{display:none!important}
+  .mapa-impresion .cierre{break-inside:avoid;page-break-inside:avoid}
+  .mapa-impresion .fam{break-inside:avoid;page-break-inside:avoid}
+}
+
+/* ================================================================
+   CIERRE — enlace pequeño y gris para volver al mapa
+   ================================================================ */
+.enlace-mapa{margin-top:20px;display:inline-block;font-size:12.5px;color:var(--txt-muted);text-decoration:underline;padding:10px 0;min-height:44px}
+.enlace-mapa:hover{color:var(--txt-title)}
+
+/* pie discreto — aviso legal, en portada y en el cierre */
+.aviso-legal{margin-top:10px;display:inline-block;font-size:11px;color:var(--txt-muted);text-decoration:underline;padding:10px 0;min-height:44px}
+.aviso-legal:hover{color:var(--txt-title)}
+
+/* ================================================================
+   MOMENTO 3 — botones: pulsado (contracción) + confirmación dorada
+   ================================================================ */
+.cta,
+.retomar-caja button,
+.scr-respiro .btnEnlace,
+.scr-respiro .seguir,
+.scr-mapa .acciones button{
+  transition:transform .09s cubic-bezier(.4,0,1,1),background-color .18s linear,color .18s linear,border-color .18s linear;
+}
+.cta.presiona,
+.retomar-caja button.presiona,
+.scr-respiro .btnEnlace.presiona,
+.scr-respiro .seguir.presiona,
+.scr-mapa .acciones button.presiona{
+  transform:scale(.97);
+}
+
+.retomar-caja .principal.hecho{background:var(--dorado);color:var(--petroleo)}
+.retomar-caja .secundaria.hecho{background:var(--dorado);color:var(--petroleo);border-color:var(--dorado)}
+.scr-respiro .btnEnlace.hecho{background:var(--dorado);color:var(--petroleo);border-color:var(--dorado)}
+.scr-mapa .acciones button.hecho{background:var(--dorado);color:var(--petroleo);border-color:var(--dorado)}
+
+/* .cta cambia de color de fondo según el modo (petróleo en claro, dorado en
+   oscuro). En modo claro la confirmación es "pasar a dorado", como en el
+   resto. En modo oscuro el botón YA es dorado de reposo: pasar a "más
+   dorado" no se vería, así que se invierte la relación fondo/texto —
+   mismo gesto (cambio sólido de color), adaptado a que aquí el dorado es
+   el color de reposo y no el de confirmación. */
+#luz[data-modo="light"] .cta.hecho{background:var(--dorado);color:var(--petroleo)}
+#luz[data-modo="dark"] .cta.hecho{background:var(--bg-screen);color:var(--dorado);border:1px solid var(--dorado)}
+
+/* Mismo problema y misma solución en el botón "Seguir" del respiro,
+   que vive siempre en modo petróleo con fondo dorado de reposo. */
+#luz[data-modo="dark"] .scr-respiro .seguir.hecho{background:var(--bg-screen);color:var(--dorado);border:1px solid var(--dorado)}
+
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
