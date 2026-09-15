@@ -883,28 +883,40 @@
   }
 
   // Construye las bandas (por color) y dentro las familias (por categoría).
-  function bandas(grupos, conNombre){
+  // `categorias` limita qué categorías entran (para repartir la lámina impresa
+  // de escritorio en dos hojas fijas, sin partir ninguna categoría). `colsPorRow`,
+  // si se da, fuerza el número de fichas por fila en la rejilla impresa.
+  function bandas(grupos, conNombre, categorias, colsPorRow){
+    var cats = categorias || CATEGORIAS_ORDEN;
+    var totalSubset = 0;
+    cats.forEach(function(cat){
+      ORDEN_MAPA.forEach(function(c){
+        totalSubset += grupos[c].filter(function(f){ return f.categoria === cat; }).length;
+      });
+    });
     var out = [];
     ORDEN_MAPA.forEach(function(c){
-      var lista = grupos[c];
+      var lista = grupos[c].filter(function(f){ return cats.indexOf(f.categoria) !== -1; });
       var titulo = (T.mapa && T.mapa.leyenda && T.mapa.leyenda[c]) || c;
       var tit = el("div", {class:"tit"}, [
         el("i", {style:"background:"+COL_MAPA[c]}),
         el("b", {text:titulo}),
-        el("em", {text: lista.length + " de " + TOTAL})
+        el("em", {text: lista.length + " de " + totalSubset})
       ]);
       var banda = el("div", {class:"banda"}, [tit]);
       if(!lista.length){
         banda.appendChild(el("p", {class:"vacio", text: (T.mapa && T.mapa.vacio) || "Ninguno por aquí."}));
       }else{
-        CATEGORIAS_ORDEN.forEach(function(cat){
+        cats.forEach(function(cat){
           var g = lista.filter(function(f){ return f.categoria === cat; });
           if(!g.length) return;
           g.forEach(function(f){ f._r = c; });
           var f = el("div", {class:"f"}, [
             el("span", {text:cat}), el("span", {text:String(g.length)})
           ]);
-          var rej = el("div", {class:"rej"}, g.map(function(item){ return ficha(item, conNombre); }));
+          var rejAttrs = {class:"rej"};
+          if(colsPorRow){ rejAttrs.style = "grid-template-columns:repeat(" + colsPorRow + ",1fr)"; }
+          var rej = el("div", rejAttrs, g.map(function(item){ return ficha(item, conNombre); }));
           banda.appendChild(el("div", {class:"fam"}, [f, rej]));
         });
       }
@@ -913,10 +925,82 @@
     return out;
   }
 
+  // Reparte CATEGORIAS_ORDEN en dos mitades de tamaño parecido (por número de
+  // alimentos, no de categorías), sin partir ninguna. Es lo que separa la
+  // lámina de escritorio en sus dos hojas fijas.
+  function repartoCategoriasEnDosHojas(){
+    var totalPorCategoria = {};
+    window.PREGUNTAS.forEach(function(p){ totalPorCategoria[p.categoria] = (totalPorCategoria[p.categoria]||0)+1; });
+    var mitad = TOTAL / 2;
+    var acum = 0, corte = CATEGORIAS_ORDEN.length;
+    for(var i=0;i<CATEGORIAS_ORDEN.length;i++){
+      acum += totalPorCategoria[CATEGORIAS_ORDEN[i]];
+      if(acum >= mitad){ corte = i+1; break; }
+    }
+    return { pagina1: CATEGORIAS_ORDEN.slice(0, corte), pagina2: CATEGORIAS_ORDEN.slice(corte) };
+  }
+
+  // Columnas por fila de la rejilla impresa, calculadas para que ni siquiera
+  // el caso extremo (todo el reparto cayendo en un único color) desborde la
+  // hoja: más alimentos concentrados en una banda → más columnas → filas más
+  // cortas. El mínimo de 6 es el que hace que las dos hojas de escritorio
+  // quepan exactas con foto+nombre a la vez (medido con 144 alimentos
+  // reales); con menos columnas la altura de cada hoja se pasa de la
+  // página. Es la propia función la que sube más si hiciera falta.
+  function colsPorRowImpresion(grupos, cats, filasMax){
+    var maxEnUnaBanda = 0;
+    ORDEN_MAPA.forEach(function(c){
+      var n = grupos[c].filter(function(f){ return cats.indexOf(f.categoria) !== -1; }).length;
+      if(n > maxEnUnaBanda) maxEnUnaBanda = n;
+    });
+    return Math.max(6, Math.ceil(maxEnUnaBanda / filasMax));
+  }
+
+  /* ============================================================
+     IMPRESIÓN: dos formatos según el dispositivo.
+     Ordenador → A4 apaisado (como hasta ahora, con nombres añadidos).
+     Móvil → A4 vertical, repartido en las páginas que hagan falta, con
+     fotos y nombres a tamaño legible. El tamaño de la hoja (`size` en
+     @page) no se puede condicionar solo con una clase CSS, así que se
+     inyecta la regla que toca justo antes de imprimir.
+     ============================================================ */
+  function esImpresionMovil(){
+    var coarse = false;
+    try{ coarse = window.matchMedia && window.matchMedia("(pointer:coarse)").matches; }catch(e){}
+    var estrecho = Math.min(window.innerWidth || 0, window.innerHeight || 0) <= 500;
+    return coarse && estrecho;
+  }
+
+  function actualizarModoImpresion(){
+    var movil = esImpresionMovil();
+    document.documentElement.classList.toggle("impresion-movil", movil);
+    var estilo = document.getElementById("pagina-dinamica");
+    if(movil){
+      if(!estilo){
+        estilo = document.createElement("style");
+        estilo.id = "pagina-dinamica";
+        document.head.appendChild(estilo);
+      }
+      // A4 vertical, sin margen (el margen se reparte con padding propio, igual
+      // que en el apaisado): así se sigue evitando el hueco que añadiría el navegador.
+      estilo.textContent = "@page{size:A4 portrait;margin:0}";
+    }else if(estilo){
+      estilo.parentNode.removeChild(estilo);
+    }
+  }
+  // Cubre tanto el botón "Guardar en PDF" (window.print()) como Ctrl/Cmd+P manual:
+  // beforeprint se dispara en ambos casos justo antes de que el navegador pagine.
+  window.addEventListener("beforeprint", actualizarModoImpresion);
+
   function pantallaMapa(){
     var M = T.mapa || {};
     var grupos = agruparRespuestas();
     var registro = el("div", {class:"reg", text: fechaRegistro() + " · " + TOTAL + " ejemplares"});
+
+    // Se calcula también aquí (y no solo en beforeprint) porque algunas
+    // herramientas de generación de PDF automatizadas no siempre disparan
+    // ese evento; así el estado ya es correcto en cuanto se pinta el mapa.
+    actualizarModoImpresion();
 
     var acciones = el("div", {class:"acciones"});
     var btnImprimir = el("button", {type:"button", text:"Guardar en PDF"});
@@ -943,19 +1027,32 @@
       cierre
     ]);
 
-    // Versión de impresión — solo fotos, 8 columnas (regla CSS), mismo cierre al final.
+    // Versión de impresión — solo fotos y nombre, repartida en dos hojas fijas
+    // en escritorio (A4 apaisado) sin partir ninguna categoría; en móvil las
+    // dos hojas se leen seguidas, en el flujo natural de varias páginas.
     var registroImp = el("div", {class:"reg", text: fechaRegistro() + " · " + TOTAL + " ejemplares"});
     var cierreImp = el("div", {class:"cierre"}, [el("p", {text: M.cierre || ""})]);
+    var reparto = repartoCategoriasEnDosHojas();
+    // 9 filas de margen por hoja: con el reparto normal entre 4 bandas no se
+    // llega ni de lejos; solo entra en juego si una banda concentra casi todo.
+    var colsHoja1 = colsPorRowImpresion(grupos, reparto.pagina1, 9);
+    var colsHoja2 = colsPorRowImpresion(grupos, reparto.pagina2, 9);
     var impresion = el("div", {class:"mapa-impresion"}, [
-      el("div", {class:"top"}, [
-        el("div", {}, [
-          el("h1", {text: M.titulo || "Mi mapa de alimentos"}),
-          el("p", {class:"sub", text: M.subtitulo || ""})
+      el("div", {class:"hoja hoja-1"}, [
+        el("div", {class:"top"}, [
+          el("div", {}, [
+            el("h1", {text: M.titulo || "Mi mapa de alimentos"}),
+            el("p", {class:"sub", text: M.subtitulo || ""})
+          ]),
+          registroImp
         ]),
-        registroImp
+        el("div", {class:"cols"}, bandas(grupos, true, reparto.pagina1, colsHoja1))
       ]),
-      el("div", {class:"cols"}, bandas(grupos, false)),
-      cierreImp
+      el("div", {class:"hoja hoja-2"}, [
+        el("div", {class:"top-cont"}, [el("span", {text: M.titulo || "Mi mapa de alimentos"})]),
+        el("div", {class:"cols"}, bandas(grupos, true, reparto.pagina2, colsHoja2)),
+        cierreImp
+      ])
     ]);
 
     var contenido = el("div", {class:"scr-mapa"}, [

@@ -337,25 +337,74 @@ img{-webkit-user-drag:none}
   .mapa-impresion{font-family:var(--sans)}
   .mapa-impresion .top{display:flex;justify-content:space-between;align-items:baseline;gap:20px;
     border-bottom:1px solid #032532;padding-bottom:10px}
-  .mapa-impresion h1{font-size:24px;color:#032532}
-  .mapa-impresion .sub{font-size:12px;color:#123944}
+  .mapa-impresion h1{font-size:22px;color:#032532}
+  .mapa-impresion .sub{font-size:11px;color:#123944}
   .mapa-impresion .reg{color:#94A4AC;border-top:0}
-  .mapa-impresion .cols{margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:0 18px}
-  .mapa-impresion .banda{margin-top:0;border-bottom:0}
-  .mapa-impresion .banda>.tit{border-bottom:1px solid #032532;padding-bottom:4px;margin-bottom:6px}
-  .mapa-impresion .banda>.tit b{font-size:9px;color:#032532}
-  .mapa-impresion .banda>.tit em{font-size:9px;color:#123944}
-  .mapa-impresion .fam{margin-top:0;margin-bottom:6px}
-  .mapa-impresion .fam>.f{font-size:6px;color:#94A4AC;margin-bottom:3px}
-  .mapa-impresion .rej{grid-template-columns:repeat(8,1fr);gap:2px}
+
+  /* Hoja 2 (escritorio): la lámina se reparte en dos hojas fijas por
+     categoría —nunca se parte una— para que quepan en dos páginas con
+     letra legible en vez de una sola apretadísima. Un rótulo pequeño
+     sustituye a la cabecera completa, que ya salió en la hoja 1. */
+  .mapa-impresion .hoja-2{break-before:page;page-break-before:always}
+  .mapa-impresion .top-cont{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;
+    color:#94A4AC;border-bottom:1px solid #032532;padding-bottom:8px;margin-bottom:0}
+
+  /* Foto Y nombre en la lámina impresa (decisión de Abby: sin el nombre no
+     reconoce el alimento). 4 bandas en columnas lado a lado —con grid, que
+     reparte el alto de página mejor que flex— y el nombre debajo de cada
+     foto. Cada hoja compacta sus categorías vacías o pequeñas: las bandas
+     con pocos alimentos no dejan hueco muerto porque la rejilla se calcula
+     por banda (ver colsPorRowImpresion en app.js), no a un ancho fijo. */
+  .mapa-impresion .cols{margin-top:10px;display:grid;grid-template-columns:repeat(4,1fr);gap:0 14px}
+  .mapa-impresion .banda{margin-top:0;border-bottom:0;min-width:0}
+  /* que la cabecera de banda no se quede sola al pie de una hoja */
+  .mapa-impresion .banda>.tit{border-bottom:1px solid #032532;padding-bottom:4px;margin-bottom:7px;
+    break-after:avoid-page;page-break-after:avoid}
+  .mapa-impresion .banda>.tit b{font-size:10px;color:#032532}
+  .mapa-impresion .banda>.tit em{font-size:10px;color:#123944}
+  .mapa-impresion .fam{margin-top:0;margin-bottom:10px}
+  .mapa-impresion .fam>.f{font-size:8px;color:#94A4AC;margin-bottom:4px}
+  .mapa-impresion .rej{grid-template-columns:repeat(6,1fr);gap:5px 6px}
   .mapa-impresion .ficha-mini{border-radius:4px;border-color:#e4e0d4}
-  .mapa-impresion .ficha-mini .muesca{height:2px}
-  .mapa-impresion .cierre{margin-top:10px;padding-top:8px;border-top:1px solid #ccc}
+  .mapa-impresion .ficha-mini .muesca{height:3px}
+  .mapa-impresion .ficha-mini .et{display:block;font-size:10px;line-height:1.24;padding:3px 3px 3.5px}
+  .mapa-impresion .ficha-mini .sig{display:none}
+  .mapa-impresion .cierre{margin-top:14px;padding-top:9px;border-top:1px solid #ccc}
   .mapa-impresion .cierre p{font-size:10.5px;color:#123944;max-width:100%}
 
   .scr-mapa .aviso-legal{display:none!important}
   .mapa-impresion .cierre{break-inside:avoid;page-break-inside:avoid}
   .mapa-impresion .fam{break-inside:avoid;page-break-inside:avoid}
+
+  /* ---- variante móvil: A4 vertical, reparto en varias hojas. El tamaño
+     de página (@page) no se puede tocar solo con esta clase — lo inyecta
+     app.js en tiempo real, ver actualizarModoImpresion().
+     Aquí la página es estrecha: 4 columnas lado a lado dejarían la foto
+     minúscula. Se vuelve a apilar una banda por fila, a todo el ancho, con
+     una rejilla de fichas más grande —hay hojas de sobra (hasta 4), así que
+     el objetivo ya no es caber sino que se lea sin esfuerzo. Las dos hojas
+     de escritorio siguen existiendo en el DOM pero aquí fluyen seguidas,
+     como una sola lámina larga: no hay salto de página forzado entre ellas
+     ni rótulo de "continúa", ese rótulo era solo para partir la de escritorio. ---- */
+  html.impresion-movil .mapa-impresion .hoja-2{break-before:auto;page-break-before:auto}
+  html.impresion-movil .mapa-impresion .top-cont{display:none}
+  html.impresion-movil .mapa-impresion .cols{display:block}
+  html.impresion-movil .mapa-impresion .banda{margin-top:16px}
+  html.impresion-movil .mapa-impresion .hoja-1 .banda:first-child{margin-top:0}
+  html.impresion-movil .mapa-impresion h1{font-size:19px}
+  html.impresion-movil .mapa-impresion .sub{font-size:10.5px}
+  html.impresion-movil .mapa-impresion .top{flex-direction:column;align-items:flex-start;gap:3px}
+  html.impresion-movil .mapa-impresion .reg{margin-top:6px;padding-top:6px}
+  html.impresion-movil .mapa-impresion .banda>.tit b{font-size:12px}
+  html.impresion-movil .mapa-impresion .banda>.tit em{font-size:12px}
+  html.impresion-movil .mapa-impresion .fam{margin-bottom:6px}
+  html.impresion-movil .mapa-impresion .fam>.f{font-size:9.5px}
+  /* 13 columnas (más que en escritorio) porque aquí sobran hojas —hasta 4— y
+     lo que hace falta es acortar filas, no ganar ancho de foto: medido con
+     144 alimentos reales, es lo que deja subir el nombre a 10px (igual que
+     en escritorio) sin pasar de la cuarta página. */
+  html.impresion-movil .mapa-impresion .rej{grid-template-columns:repeat(13,1fr)!important;gap:4px}
+  html.impresion-movil .mapa-impresion .ficha-mini .et{display:block;font-size:10px;line-height:1.15;padding:2px 2px 2px}
 }
 
 /* ================================================================
