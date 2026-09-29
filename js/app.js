@@ -14,16 +14,15 @@
   // ninguna petición y el test funciona exactamente igual.
   var ENDPOINT = "";
 
-  // Aviso legal — lo crea Abby en Systeme.io. Vacía a propósito: mientras esté vacía, el
-  // enlace del pie (portada y cierre) no se muestra en absoluto.
-  var URL_AVISO_LEGAL = "";
+  var URL_AVISO_LEGAL = "https://abigailpni.com/legal/aviso-legal.html";
 
   var T = window.TEXTOS || {};
   var TITULO_ORIGINAL = document.title;
 
-  var MAPA_VERDE = "verde", MAPA_AMBAR = "ambar", MAPA_ROJO = "rojo", MAPA_NOSE = "nose";
-  var VAL_A_KEY = ["verde", "ambar", "rojo", "nose"]; // 0..3
-  var KEY_A_VAL = { verde: 0, ambar: 1, rojo: 2, nose: 3 };
+  var MAPA_VERDE = "verde", MAPA_AMBAR = "ambar", MAPA_ROJO = "rojo", MAPA_NOSE = "nose",
+      MAPA_NOCOMO = "nocomo";
+  var VAL_A_KEY = ["verde", "ambar", "rojo", "nose", "nocomo"]; // 0..4
+  var KEY_A_VAL = { verde: 0, ambar: 1, rojo: 2, nose: 3, nocomo: 4 };
 
   /* ============================================================
      CATEGORÍAS — posición dentro de cada categoría, precomputado
@@ -115,6 +114,8 @@
     var idx = data.indice;
     limpio.indice = (typeof idx === "number" && isFinite(idx) && idx >= -1 && idx <= TOTAL + 1)
       ? Math.floor(idx) : -1;
+    // La pantalla de lectura previa al mapa se ve una sola vez.
+    limpio.vioLectura = data.vioLectura === true;
     return limpio;
   }
 
@@ -266,7 +267,7 @@
     var enBloqueContiguo = true;
     for(var i=0;i<n;i++){
       var val = lector.leer(BITS_ALIMENTO);
-      if(val > 4) return null; // 5, 6 y 7 no existen: fragmento manipulado
+      if(val > 5) return null; // 6 y 7 no existen: fragmento manipulado
       if(val === 0){ enBloqueContiguo = false; continue; }
       respuestas[String(i)] = VAL_A_KEY[val - 1];
       if(enBloqueContiguo) maxContiguo = i;
@@ -554,7 +555,7 @@
     var parrafos = (B.parrafos||[]).map(function(p){ return el("p", {text:p}); });
     var boton = el("button", {class:"cta", type:"button"});
     boton.textContent = B.cta || "Empezar test";
-    boton.addEventListener("click", function(){ pulsarBoton(boton, irAGeneral); });
+    boton.addEventListener("click", function(){ pulsarBoton(boton, irAComoResponder); });
 
     var cuerpo = el("div", {class:"portadaCuerpo"}, [
       el("h1", {text: B.titulo || ""}),
@@ -623,6 +624,8 @@
       {key:"rojo",  texto: t.rojo  || "Me sienta mal"},
       {key:"nose",  texto: t.nose  || "No lo sé", hueco:true}
     ];
+    // Salida lateral: no es una quinta respuesta del semáforo, es decir "esto no va
+    // conmigo". Va debajo, pequeña y sin punto de color, para no competir con las cuatro.
     var opsWrap = el("div", {class:"ops"});
     opciones.forEach(function(o){
       var fila = el("button", {
@@ -638,6 +641,13 @@
       opsWrap.appendChild(fila);
     });
 
+    var noComo = el("button", {
+      class: "op-nocomo" + (respuestaActual === "nocomo" ? " sel" : ""),
+      type: "button", "data-key": "nocomo",
+      text: t.nocomo || "No lo como"
+    });
+    noComo.addEventListener("click", function(){ manejarClicOpcion(i, "nocomo", noComo, opsWrap); });
+
     var ident = el("div", {class:"ident"}, [
       el("h2", {class:"nm", text: cap(p.nombre)}),
       el("p", {class:"q", text: t.encabezado || "¿Cómo te suele sentar?"})
@@ -646,7 +656,7 @@
     var foot = el("p", {class:"foot", text: (T.ui && T.ui.guardado) || "Se guarda solo, puedes cerrar cuando quieras."});
     if(i >= FOOT_HASTA) foot.hidden = true;
 
-    var panel = el("div", {class:"panel"}, [ident, opsWrap, foot]);
+    var panel = el("div", {class:"panel"}, [ident, opsWrap, noComo, foot]);
     var cuerpo = el("div", {class:"cuerpoAlimento"}, [foto, panel]);
 
     var contenido = el("div", {class:"scr-alimento"}, [rail, band, cuerpo]);
@@ -851,18 +861,23 @@
      PANTALLA: MAPA — pliego de herbario compuesto por fichas de fichero.
      Se agrupa SOLO por color y, dentro, por categoría de alimento.
      ============================================================ */
-  var COL_MAPA = { verde:"#7E9B76", ambar:"#CB9151", rojo:"#A65A4A", nose:"#94A4AC" };
+  var COL_MAPA = { verde:"#7E9B76", ambar:"#CB9151", rojo:"#A65A4A", nose:"#94A4AC", nocomo:"#C3C9CC" };
+  // "No lo como" NO entra en el mapa: lo que no come no es informacion que ella tenga
+  // que mirar, y cuantos menos datos delante, menos se bloquea. Solo se dice cuantos son.
   var ORDEN_MAPA = [MAPA_VERDE, MAPA_AMBAR, MAPA_ROJO, MAPA_NOSE];
   var MESES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
 
   function agruparRespuestas(){
     var grupos = { verde:[], ambar:[], rojo:[], nose:[] };
+    var fuera = 0;
     for(var i=0;i<TOTAL;i++){
       var r = state.respuestas[String(i)];
+      if(r === MAPA_NOCOMO){ fuera++; continue; }
       if(!r || !grupos[r]) continue;
       var p = window.PREGUNTAS[i];
       grupos[r].push({ nombre: p.nombre, categoria: p.categoria, img: p.img, sig: SIGNATURAS[i] });
     }
+    agruparRespuestas.__fuera = fuera;
     return grupos;
   }
 
@@ -995,7 +1010,9 @@
   function pantallaMapa(){
     var M = T.mapa || {};
     var grupos = agruparRespuestas();
-    var registro = el("div", {class:"reg", text: fechaRegistro() + " · " + TOTAL + " ejemplares"});
+    var nFuera = (agruparRespuestas.__fuera || 0);
+    var registro = el("div", {class:"reg", text: fechaRegistro() + " · " + TOTAL + " ejemplares"
+      + (nFuera ? " · " + nFuera + " que no como, fuera" : "")});
 
     // Se calcula también aquí (y no solo en beforeprint) porque algunas
     // herramientas de generación de PDF automatizadas no siempre disparan
@@ -1095,6 +1112,70 @@
   /* ============================================================
      NAVEGACIÓN
      ============================================================ */
+  /* ============================================================
+     PANTALLA: CINCO RESPUESTAS (petroleo)
+     Se ve una sola vez, entre la portada y la pregunta general. Es lo minimo
+     que hace falta para responder bien; el resto se cuenta al final.
+     ============================================================ */
+  function pantallaComoResponder(){
+    var t = T.comoResponder || {};
+    var lista = el("div", {class:"leyenda-ops"});
+    (t.items || []).forEach(function(it){
+      var etiqueta = (T.pregunta && T.pregunta[it.key]) || it.key;
+      lista.appendChild(el("div", {class:"ley"}, [
+        el("span", {class:"dot" + (it.key === "nocomo" ? " hueco" : ""),
+                    style: it.key === "nocomo" ? "" : "background:var(--"+it.key+")"}),
+        el("div", {class:"tx"}, [
+          el("b", {text: etiqueta}),
+          el("p", {text: it.texto})
+        ])
+      ]));
+    });
+    var boton = el("button", {class:"cta", type:"button", text: t.cta || "Empezar"});
+    boton.addEventListener("click", function(){ pulsarBoton(boton, irAGeneral); });
+    return el("div", {class:"txtscr scr-leyenda"}, [
+      el("h1", {text: t.titulo || "Cinco respuestas"}),
+      el("p", {class:"sub", text: t.intro || ""}),
+      lista,
+      el("p", {class:"nota", text: t.nota || ""}),
+      boton,
+      enlaceAvisoLegal()
+    ]);
+  }
+
+  /* ============================================================
+     PANTALLA: ANTES DE VER EL MAPA (petroleo)
+     Se ve una sola vez, justo antes del mapa. Es lo que evita que lea su
+     mapa como una lista de prohibidos.
+     ============================================================ */
+  function pantallaAntesDelMapa(){
+    var t = T.antesDelMapa || {};
+    var hijos = [ el("h1", {text: t.titulo || "Antes de verlo"}) ];
+    (t.parrafos || []).forEach(function(x){ hijos.push(el("p", {text:x})); });
+    var ul = el("div", {class:"puntos"});
+    (t.comoSeUsa || []).forEach(function(x){
+      ul.appendChild(el("div", {class:"punto"}, [ el("i"), el("p", {text:x}) ]));
+    });
+    hijos.push(ul);
+    hijos.push(el("p", {class:"aviso-umbral", text: t.aviso || ""}));
+    var boton = el("button", {class:"cta", type:"button", text: t.cta || "Ver mi mapa"});
+    boton.addEventListener("click", function(){
+      pulsarBoton(boton, function(){
+        state.vioLectura = true;
+        state.indice = TOTAL;
+        guardar();
+        mostrar(pantallaMapa, "light");
+      });
+    });
+    hijos.push(boton);
+    hijos.push(enlaceAvisoLegal());
+    return el("div", {class:"txtscr scr-lectura"}, hijos);
+  }
+
+  function irAComoResponder(){
+    mostrar(pantallaComoResponder, "light");
+  }
+
   function irAGeneral(){
     state.indice = -1;
     guardar();
@@ -1112,7 +1193,8 @@
     }else if(state.indice >= 0 && state.indice < TOTAL){
       mostrar(function(){ return pantallaAlimento(state.indice); }, "light");
     }else if(state.indice === TOTAL){
-      mostrar(pantallaMapa, "light");
+      if(!state.vioLectura){ mostrar(pantallaAntesDelMapa, "light"); }
+      else{ mostrar(pantallaMapa, "light"); }
     }else{
       mostrar(pantallaFinal, "dark");
     }
@@ -1135,7 +1217,7 @@
   document.addEventListener("keydown", function(ev){
     if(state.indice < 0 || state.indice >= TOTAL) return;
     if(ev.key === "ArrowLeft"){ irAtras(); return; }
-    var mapaTeclas = {"1":"verde", "2":"ambar", "3":"rojo", "4":"nose"};
+    var mapaTeclas = {"1":"verde", "2":"ambar", "3":"rojo", "4":"nose", "5":"nocomo"};
     if(mapaTeclas[ev.key]){
       var fila = document.querySelector('.op[data-key="'+mapaTeclas[ev.key]+'"]');
       if(fila) fila.click();

@@ -27,7 +27,8 @@ window.TEXTOS = {
     verde: "Bien, sin problema",
     ambar: "Depende del día",
     rojo: "Me sienta mal",
-    nose: "No lo sé"
+    nose: "No lo sé",
+    nocomo: "No lo como"
   },
   respiro: {
     "Frutas": "Frutas ya vistas, una a una. Queda un buen trecho todavía.",
@@ -40,6 +41,39 @@ window.TEXTOS = {
     "Huevo": "Huevo era el bloque más corto de todos, y ya pasó.",
     "Lácteos": "Lácteos atrás. Después de esto solo queda una categoría más."
   },
+  // Pantalla que se ve UNA vez, entre la portada y la pregunta general: lo imprescindible
+  // para responder bien. Breve a proposito: aqui todavia no ha invertido nada y se va.
+  comoResponder: {
+    titulo: "Cinco respuestas",
+    intro: "Te las explico una vez y ya no te interrumpo más.",
+    items: [
+      { key: "verde",  texto: "Te sienta bien casi siempre. Lo comes y no pasa nada." },
+      { key: "ambar",  texto: "Unas veces bien y otras no, y cuando molesta, molesta poco: algo de hinchazón, la digestión más pesada." },
+      { key: "rojo",   texto: "Casi siempre y fuerte: reflujo, cólicos, hinchazón muy marcada. Lo tienes fichado desde hace tiempo." },
+      { key: "nose",   texto: "No te has fijado o no te acuerdas. Es una respuesta tan válida como las otras." },
+      { key: "nocomo", texto: "No lo comes y no lo echas de menos. Así se queda fuera y no tienes que volver a pensarlo." }
+    ],
+    nota: "Lo primero que te venga es lo bueno: llevas años conviviendo con tu barriga y esa información ya la tienes.",
+    cta: "Empezar"
+  },
+  // Pantalla que se ve UNA vez, justo antes del mapa. Aqui ya ha hecho el esfuerzo, asi
+  // que puede ser mas larga: es lo que evita que lea el mapa como una lista de prohibidos.
+  antesDelMapa: {
+    titulo: "Antes de verlo",
+    parrafos: [
+      "Piensa en un vaso. Cada cosa que tu sistema tiene que gestionar echa un poco de agua dentro: lo que comes, pero también el sueño, el estrés y el día que llevas. Los síntomas no aparecen por el último trago, sino cuando el vaso rebosa.",
+      "Un naranja echa poca agua: por eso unas veces te sienta bien y otras no, según lo lleno que estuviera ya. Uno solo casi nunca desborda nada; tres o cuatro el mismo día, sí. Un rojo echa tanta de golpe que desborda él solo, sin ayuda de nadie.",
+      "Así que lo que vas a ver no es una lista de alimentos prohibidos. Es de dónde partes: cuánto verde tienes para construir encima."
+    ],
+    comoSeUsa: [
+      "Los verdes son tu base, lo que te sostiene mientras el vaso baja de nivel.",
+      "Sobre esa base se van añadiendo naranjas de uno en uno. De uno en uno no es una manía: es la única forma de saber si tu sistema ya no está reaccionando a ese alimento.",
+      "Cuando se trabaja el umbral y el vaso baja, los naranjas empiezan a pasar a verdes. El mapa de hoy no es el de dentro de unos meses.",
+      "Si tienes que elegir por dónde empezar, tira de lo versátil: recuperar la cebolla o el ajo te cambia media cocina; recuperar las nueces te cambia el desayuno del domingo."
+    ],
+    aviso: "Y lo más importante: esto no es para que salgas de aquí calculando cada comida ni dándole vueltas todo el día a qué puedes comer. Vigilarte todo el rato también llena el vaso. No hay que hacer cuentas: basta con no juntar varios naranjas el mismo día e ir poco a poco.",
+    cta: "Ver mi mapa"
+  },
   // Pantalla de resultado. Se agrupa SOLO por color y por categoría de alimento.
   // Prohibido agrupar por criterio técnico (histamina, fermentables, fibra): eso sería
   // una clasificación clínica sobre sus datos, no sus propias respuestas.
@@ -51,7 +85,8 @@ window.TEXTOS = {
       verde: "Me sientan bien",
       ambar: "Depende del día",
       rojo: "Me sientan mal",
-      nose: "No lo sé todavía"
+      nose: "No lo sé todavía",
+      nocomo: "No lo como"
     },
     vacio: "Ninguno por aquí."
   },

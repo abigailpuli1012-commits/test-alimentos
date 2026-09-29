@@ -317,6 +317,43 @@ img{-webkit-user-drag:none}
 /* la versión de impresión vive siempre en el DOM, oculta en pantalla */
 .mapa-impresion{display:none}
 
+
+/* "No lo como": es una opcion de verdad, con su caja y su area de toque, pero sin
+   punto de color: no forma parte del semaforo, solo saca el alimento de la lista. */
+.op-nocomo{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;
+  margin-top:8px;min-height:52px;padding:0 18px;cursor:pointer;
+  background:var(--blanco);border:1px solid rgba(3,37,50,.09);border-radius:var(--r);
+  font:inherit;font-size:14.5px;font-weight:300;letter-spacing:.015em;color:var(--medio);
+  transition:background .18s,border-color .18s,transform .12s}
+.op-nocomo:hover{border-color:rgba(182,164,122,.8)}
+.op-nocomo:active{transform:scale(.985)}
+.op-nocomo.sel{border-color:var(--gris);background:rgba(148,164,172,.14)}
+#luz[data-modo="dark"] .op-nocomo{background:rgba(244,241,233,.05);
+  border-color:rgba(244,241,233,.16);color:var(--marfil)}
+#luz[data-modo="dark"] .op-nocomo.sel{background:rgba(244,241,233,.14)}
+
+
+/* ---- Pantallas de lectura (cinco respuestas · antes del mapa) ----
+   Van en MARFIL, no en petroleo: aqui se lee, y el texto denso se lee mejor sobre
+   claro. El petroleo queda para mirar y respirar (portada, respiros, cierre). ---- */
+.scr-leyenda .sub, .scr-lectura .sub{font-size:14px;font-weight:300;color:var(--gris);margin-bottom:18px}
+.leyenda-ops{margin:6px 0 14px}
+.ley{display:flex;gap:13px;padding:12px 14px;background:var(--blanco);
+  border:1px solid rgba(3,37,50,.07);border-radius:var(--r);margin-bottom:7px}
+.ley .dot{width:11px;height:11px;border-radius:50%;flex:0 0 11px;margin-top:5px}
+.ley .dot.hueco{background:none;border:1px solid var(--gris)}
+.ley b{display:block;font-size:14.5px;font-weight:500;color:var(--petroleo);margin-bottom:3px}
+.ley p{font-size:13px;font-weight:300;line-height:1.5;color:var(--medio);margin:0}
+.scr-leyenda .nota{font-size:12.5px;font-weight:300;line-height:1.55;color:var(--gris);margin-bottom:8px}
+
+.scr-lectura p{font-size:14px;font-weight:300;line-height:1.62;color:var(--medio);margin-bottom:12px}
+.puntos{margin:14px 0 4px}
+.punto{display:flex;gap:12px;padding:9px 0}
+.punto i{width:5px;height:5px;border-radius:50%;background:var(--dorado);flex:0 0 5px;margin-top:8px}
+.punto p{margin:0;font-size:13.5px;line-height:1.55}
+.aviso-umbral{background:var(--blanco);border-radius:var(--r);padding:14px 16px;margin-top:10px;
+  font-size:13px!important;color:var(--medio)!important;line-height:1.55}
+
 @media print{
   /* Nada de visibility:hidden: un elemento invisible sigue ocupando su alto y el
      documento impreso conserva esas miles de píxeles como hojas en blanco. Se
