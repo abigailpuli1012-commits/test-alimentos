@@ -1007,6 +1007,122 @@
   // beforeprint se dispara en ambos casos justo antes de que el navegador pagine.
   window.addEventListener("beforeprint", actualizarModoImpresion);
 
+  // PDF "bonito" para móvil: muchos navegadores de móvil no tienen window.print(),
+  // así que se genera aquí mismo a partir del mapa de pantalla (fondo oscuro y fotos).
+  function cargarScript(src){
+    return new Promise(function(ok, ko){
+      if(document.querySelector('script[src="' + src + '"]')){ ok(); return; }
+      var s = document.createElement("script");
+      s.src = src; s.onload = ok; s.onerror = ko;
+      document.head.appendChild(s);
+    });
+  }
+  function fondoDe(nodo){
+    for(var n = nodo; n && n.nodeType === 1; n = n.parentElement){
+      var c = getComputedStyle(n).backgroundColor;
+      if(c && c !== "transparent" && !/rgba\(.*,\s*0\)$/.test(c)) return c;
+    }
+    return "#032532";
+  }
+  function generarPdfMovil(original){
+    // Se maqueta una copia a 900 px de ancho y 8 fotos por fila, fuera de la vista:
+    // la versión de pantalla del móvil, en una columna, daría casi treinta hojas.
+    var envoltura = el("div", {id:"pdf-movil"});
+    envoltura.style.cssText = "position:absolute;left:-10000px;top:0;width:900px;padding:40px 44px";
+    var estilo = el("style", {text:"#pdf-movil .mapa-pantalla{max-width:none!important;width:auto!important;margin:0!important}"
+      + "#pdf-movil .banda{display:flex!important;flex-wrap:wrap!important;column-gap:22px!important;align-items:flex-start}"
+      + "#pdf-movil .banda>.tit{flex:0 0 100%!important}"
+      + "#pdf-movil .fam{flex:0 0 auto!important;max-width:100%}"
+      + "#pdf-movil .rej{display:flex!important;flex-wrap:wrap!important;gap:8px!important}"
+      + "#pdf-movil .rej>*{width:86px!important;flex:0 0 86px!important}"});
+    envoltura.appendChild(estilo);
+    var nodo = original.cloneNode(true);
+    envoltura.appendChild(nodo);
+    original.parentElement.appendChild(envoltura);
+    var quitar = function(){ if(envoltura.parentNode) envoltura.parentNode.removeChild(envoltura); };
+    var fotos = Array.prototype.slice.call(nodo.querySelectorAll("img"));
+    fotos.forEach(function(i){ i.loading = "eager"; });
+    return cargarScript("js/vendor/html2canvas.min.js")
+      .then(function(){ return cargarScript("js/vendor/jspdf.umd.min.js"); })
+      .then(function(){ return document.fonts ? document.fonts.ready : null; })
+      .then(function(){
+        return Promise.all(fotos.map(function(i){
+          return i.complete ? null : new Promise(function(ok){ i.onload = i.onerror = ok; });
+        }));
+      })
+      .then(function(){
+        nodo = envoltura;
+        var fondo = fondoDe(nodo);
+        var base = nodo.getBoundingClientRect();
+        // Cortes de página permitidos: justo encima de cada foto, para no partir ningún alimento.
+        var cortes = [], cortesFoto = [];
+        Array.prototype.forEach.call(nodo.querySelectorAll(".fam, .banda>.tit"), function(b){
+          cortes.push(Math.round(b.getBoundingClientRect().top - base.top) - 10);
+        });
+        Array.prototype.forEach.call(nodo.querySelectorAll("img"), function(img){
+          var p = img.parentElement.getBoundingClientRect();
+          cortesFoto.push(Math.round(p.top - base.top) - 8);
+        });
+        cortes.sort(function(a, b){ return a - b; });
+        cortesFoto.sort(function(a, b){ return a - b; });
+        var escala = 2;
+        return window.html2canvas(nodo, {backgroundColor: fondo, scale: escala, logging: false})
+          .then(function(lienzo){
+            var anchoCss = lienzo.width / escala, altoCss = lienzo.height / escala;
+            var margen = 28, altoPagina = Math.round(anchoCss * 1.4142);
+            var pdf = new window.jspdf.jsPDF({orientation: "p", unit: "pt", format: "a4", compress: true});
+            var anchoPt = pdf.internal.pageSize.getWidth(), ptPorCss = anchoPt / anchoCss;
+            var inicio = 0, primera = true;
+            while(inicio < altoCss - 2){
+              var arriba = primera ? 0 : margen;
+              var limite = inicio + altoPagina - arriba;
+              var fin = altoCss;
+              if(limite < altoCss){
+                fin = limite;
+                var elegido = null;
+                [cortes, cortesFoto].some(function(lista){
+                  for(var i = lista.length - 1; i >= 0; i--){
+                    if(lista[i] <= limite && lista[i] > inicio + 200){ elegido = lista[i]; return true; }
+                  }
+                  return false;
+                });
+                if(elegido !== null) fin = elegido;
+              }
+              var hoja = document.createElement("canvas");
+              hoja.width = Math.round(anchoCss * escala);
+              hoja.height = Math.round(altoPagina * escala);
+              var ctx = hoja.getContext("2d");
+              ctx.fillStyle = fondo; ctx.fillRect(0, 0, hoja.width, hoja.height);
+              ctx.drawImage(lienzo, 0, inicio * escala, lienzo.width, (fin - inicio) * escala,
+                0, arriba * escala, lienzo.width, (fin - inicio) * escala);
+              if(!primera) pdf.addPage("a4", "p");
+              pdf.addImage(hoja.toDataURL("image/jpeg", 0.88), "JPEG", 0, 0, anchoPt, altoPagina * ptPorCss);
+              primera = false;
+              inicio = fin;
+            }
+            return pdf.output("blob");
+          });
+      })
+      .then(function(blob){ quitar(); return blob; }, function(e){ quitar(); throw e; });
+  }
+  function entregarPdf(blob){
+    var nombre = "mi-mapa-de-alimentos.pdf";
+    try{
+      var archivo = new File([blob], nombre, {type: "application/pdf"});
+      if(navigator.canShare && navigator.canShare({files: [archivo]})){
+        return navigator.share({files: [archivo], title: "Mi mapa de alimentos"})
+          .catch(function(e){ if(!e || e.name !== "AbortError") descargarBlob(blob, nombre); });
+      }
+    }catch(e){}
+    descargarBlob(blob, nombre);
+  }
+  function descargarBlob(blob, nombre){
+    var url = URL.createObjectURL(blob);
+    var a = el("a", {href: url, download: nombre});
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+  }
+
   function pantallaMapa(){
     var M = T.mapa || {};
     var grupos = agruparRespuestas();
@@ -1021,9 +1137,38 @@
 
     var acciones = el("div", {class:"acciones"});
     var btnImprimir = el("button", {type:"button", text:"Guardar en PDF"});
+    var pdfListo = null, pdfPromesa = null, pdfPendiente = false;
+    function prepararPdf(){
+      if(pdfPromesa) return pdfPromesa;
+      pdfPromesa = generarPdfMovil(pantalla).then(function(blob){
+        pdfListo = blob;
+        if(pdfPendiente){ pdfPendiente = false; btnImprimir.textContent = "Guardar en PDF"; entregarPdf(blob); }
+        return blob;
+      }).catch(function(){
+        pdfPromesa = null;
+        if(pdfPendiente){ pdfPendiente = false; btnImprimir.textContent = "Guardar en PDF"; window.print(); }
+      });
+      return pdfPromesa;
+    }
     btnImprimir.addEventListener("click", function(){
-      pulsarBoton(btnImprimir, function(){ window.print(); }, {revertirMs:1600});
+      if(!esImpresionMovil()){
+        pulsarBoton(btnImprimir, function(){ window.print(); }, {revertirMs:1600});
+        return;
+      }
+      if(pdfListo){ entregarPdf(pdfListo); return; }
+      pdfPendiente = true;
+      btnImprimir.textContent = "Preparando tu PDF…";
+      prepararPdf();
     });
+    if(esImpresionMovil()){
+      setTimeout(function(){
+        var imgs = Array.prototype.slice.call(pantalla.querySelectorAll("img"));
+        imgs.forEach(function(i){ i.loading = "eager"; });
+        Promise.all(imgs.map(function(i){
+          return i.complete ? null : new Promise(function(ok){ i.onload = i.onerror = ok; });
+        })).then(prepararPdf);
+      }, 700);
+    }
     acciones.appendChild(btnImprimir);
 
     var continuar = el("button", {class:"continuar", type:"button", text:"Ya lo he visto"});
