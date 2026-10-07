@@ -5,14 +5,14 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Test de alimentos · Soberanía Biológica</title>
 <meta name="description" content="Marca cómo te sienta cada alimento, uno a uno.">
-<!-- connect-src incluye script.google.com solo para el recuento anónimo (dos avisos ciegos,
-     ver js/app.js:ENDPOINT). Si Abby despliega el Apps Script en otro dominio, hay que
-     añadirlo aquí; mientras ENDPOINT esté vacío no se hace ninguna petición. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; connect-src 'self' https://script.google.com https://script.googleusercontent.com; base-uri 'none'; form-action 'none'">
+<!-- connect-src incluye abigailpni.com para el recuento anónimo: dos avisos ciegos
+     (empezar y terminar) al contador propio, sin nada que identifique a nadie.
+     Ver js/app.js:enviarRecuento. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self'; connect-src 'self' https://abigailpni.com; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="css/estilo.css?v=21">
+<link rel="stylesheet" href="css/estilo.css?v=22">
 </head>
 <body>
 
@@ -20,8 +20,8 @@
   <main id="app" role="main" aria-live="polite"></main>
 </div>
 
-<script src="data/preguntas.js?v=21"></script>
-<script src="data/textos.js?v=21"></script>
-<script src="js/app.js?v=21"></script>
+<script src="data/preguntas.js?v=22"></script>
+<script src="data/textos.js?v=22"></script>
+<script src="js/app.js?v=22"></script>
 </body>
 </html>

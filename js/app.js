@@ -12,7 +12,6 @@
   // Endpoint del recuento anónimo (dos avisos ciegos: "inicio" y "fin"). Vacío a propósito:
   // Abby lo rellenará cuando despliegue el Apps Script. Con la constante vacía, no se hace
   // ninguna petición y el test funciona exactamente igual.
-  var ENDPOINT = "";
 
   var URL_AVISO_LEGAL = "https://abigailpni.com/legal/aviso-legal.html";
 
@@ -309,16 +308,14 @@
      RECUENTO ANÓNIMO — dos avisos ciegos, sin nada que los una
      ============================================================ */
   function enviarRecuento(tipo){
-    if(!ENDPOINT) return; // sin endpoint, no se hace ninguna petición
+    // Dos avisos ciegos al contador propio de abigailpni.com: uno al empezar y
+    // otro al terminar. No viaja nada de la persona, solo "uno mas".
     var flag = "test-alimentos-recuento-" + tipo;
     try{ if(sessionStorage.getItem(flag)) return; sessionStorage.setItem(flag, "1"); }catch(e){}
+    var destino = "https://abigailpni.com/api/visita?s=test&r=" + (tipo === "fin" ? "/fin" : "/");
     try{
-      fetch(ENDPOINT, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({ evento: tipo })
-      });
+      if(navigator.sendBeacon) navigator.sendBeacon(destino);
+      else fetch(destino, { method: "POST", mode: "no-cors", keepalive: true });
     }catch(e){}
   }
 
